@@ -1,53 +1,82 @@
 package com.example;
 
-import com.google.inject.Provides;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.ChatMessageType;
+import net.runelite.api.Actor;
 import net.runelite.api.Client;
-import net.runelite.api.GameState;
-import net.runelite.api.events.GameStateChanged;
-import net.runelite.client.config.ConfigManager;
+import net.runelite.api.Hitsplat;
+import net.runelite.api.NPC;
+import net.runelite.api.events.GameTick;
+import net.runelite.api.events.HitsplatApplied;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 
 @Slf4j
 @PluginDescriptor(
-	name = "Example"
+	name = "HP Testing"
 )
 public class ExamplePlugin extends Plugin
 {
-	@Inject
-	private Client client;
+	private HashMap<Integer, ArrayList<Hitsplat>> hitsplats;
 
 	@Inject
-	private ExampleConfig config;
+	private Client client;
 
 	@Override
 	protected void startUp() throws Exception
 	{
-		log.info("Example started!");
+		this.hitsplats = new HashMap<>();
 	}
 
 	@Override
 	protected void shutDown() throws Exception
 	{
-		log.info("Example stopped!");
+		this.hitsplats = null;
 	}
 
 	@Subscribe
-	public void onGameStateChanged(GameStateChanged gameStateChanged)
+	public void onGameTick(GameTick event)
 	{
-		if (gameStateChanged.getGameState() == GameState.LOGGED_IN)
+		for (Map.Entry<Integer, ArrayList<Hitsplat>> entry : this.hitsplats.entrySet())
 		{
-			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "Example says " + config.greeting(), null);
+			Integer npcId = entry.getKey();
+			ArrayList<Hitsplat> hitsplats = entry.getValue();
+
+			StringBuilder hitsplatString = new StringBuilder();
+			for (int i = 0; i < hitsplats.size(); i++)
+			{
+				Hitsplat hitsplat = hitsplats.get(i);
+				hitsplatString.append(hitsplat.getAmount());
+				if (i + 1 < hitsplats.size())
+					hitsplatString.append(",");
+			}
+
+			log.debug("NPC {}: {}", npcId, hitsplatString);
 		}
+
+		this.hitsplats.clear();
 	}
 
-	@Provides
-	ExampleConfig provideConfig(ConfigManager configManager)
+	@Subscribe
+	public void onHitsplatApplied(HitsplatApplied event)
 	{
-		return configManager.getConfig(ExampleConfig.class);
+		Actor actor = event.getActor();
+		if (actor instanceof NPC)
+		{
+			NPC npc = (NPC) actor;
+
+			ArrayList<Hitsplat> hitsplats = this.hitsplats.get(npc.getIndex());
+			if (hitsplats == null)
+			{
+				hitsplats = new ArrayList<>();
+			}
+
+			hitsplats.add(event.getHitsplat());
+			this.hitsplats.put(npc.getIndex(), hitsplats);
+		}
 	}
 }
