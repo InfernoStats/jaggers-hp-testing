@@ -64,6 +64,12 @@ public class ExamplePlugin extends Plugin
 	@Subscribe
 	public void onHitsplatApplied(HitsplatApplied event)
 	{
+		Hitsplat hitsplat = event.getHitsplat();
+		if (!hitsplat.isMine())
+		{
+			return;
+		}
+
 		Actor actor = event.getActor();
 		if (actor instanceof NPC)
 		{
@@ -75,7 +81,7 @@ public class ExamplePlugin extends Plugin
 				hitsplats = new ArrayList<>();
 			}
 
-			hitsplats.add(event.getHitsplat());
+			hitsplats.add(hitsplat);
 			this.hitsplats.put(npc.getIndex(), hitsplats);
 		}
 	}
